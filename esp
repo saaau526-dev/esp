@@ -1,7 +1,63 @@
-_G.ShowNames = true
-_G.ShowBoxes = true
-_G.ShowTracers = true
-_G.ESPColor = Color3.fromRGB(255, 255, 255)
+-- デフォルト設定はすべて OFF (false)
+_G.ShowNames = false
+_G.ShowBoxes = false
+_G.ShowTracers = false
+_G.ShowSkeletons = false
+
+-- 各項目ごとのカラーデータ初期値
+_G.Colors = {
+    ShowNames = Color3.fromRGB(255, 255, 255),
+    ShowBoxes = Color3.fromRGB(255, 255, 255),
+    ShowTracers = Color3.fromRGB(255, 255, 255),
+    ShowSkeletons = Color3.fromRGB(255, 255, 255)
+}
+
+-- 現在カラー編集対象になっている項目
+local currentConfigTarget = "ShowNames"
+
+local HttpService = game:GetService("HttpService")
+local fileName = "ESP_Config_Advanced.json"
+
+-- セーブ機能
+local function saveConfig()
+    local config = {
+        ShowNames = _G.ShowNames,
+        ShowBoxes = _G.ShowBoxes,
+        ShowTracers = _G.ShowTracers,
+        ShowSkeletons = _G.ShowSkeletons,
+        Colors = {
+            Names = {math.floor(_G.Colors.ShowNames.R*255), math.floor(_G.Colors.ShowNames.G*255), math.floor(_G.Colors.ShowNames.B*255)},
+            Boxes = {math.floor(_G.Colors.ShowBoxes.R*255), math.floor(_G.Colors.ShowBoxes.G*255), math.floor(_G.Colors.ShowBoxes.B*255)},
+            Tracers = {math.floor(_G.Colors.ShowTracers.R*255), math.floor(_G.Colors.ShowTracers.G*255), math.floor(_G.Colors.ShowTracers.B*255)},
+            Skeletons = {math.floor(_G.Colors.ShowSkeletons.R*255), math.floor(_G.Colors.ShowSkeletons.G*255), math.floor(_G.Colors.ShowSkeletons.B*255)}
+        }
+    }
+    pcall(function()
+        writefile(fileName, HttpService:JSONEncode(config))
+    end)
+end
+
+-- ロード機能
+local function loadConfig()
+    pcall(function()
+        if isfile(fileName) then
+            local data = HttpService:JSONDecode(readfile(fileName))
+            if data.ShowNames ~= nil then _G.ShowNames = data.ShowNames end
+            if data.ShowBoxes ~= nil then _G.ShowBoxes = data.ShowBoxes end
+            if data.ShowTracers ~= nil then _G.ShowTracers = data.ShowTracers end
+            if data.ShowSkeletons ~= nil then _G.ShowSkeletons = data.ShowSkeletons end
+            
+            if data.Colors then
+                if data.Colors.Names then _G.Colors.ShowNames = Color3.fromRGB(unpack(data.Colors.Names)) end
+                if data.Colors.Boxes then _G.Colors.ShowBoxes = Color3.fromRGB(unpack(data.Colors.Boxes)) end
+                if data.Colors.Tracers then _G.Colors.ShowTracers = Color3.fromRGB(unpack(data.Colors.Tracers)) end
+                if data.Colors.Skeletons then _G.Colors.ShowSkeletons = Color3.fromRGB(unpack(data.Colors.Skeletons)) end
+            end
+        end
+    end)
+end
+
+loadConfig()
 
 local Holder = Instance.new("Folder", game.CoreGui)
 Holder.Name = "ESP"
@@ -17,7 +73,7 @@ local MenuToggle = Instance.new("TextButton", ScreenGui)
 MenuToggle.Size = UDim2.new(0, 130, 0, 35)
 MenuToggle.Position = UDim2.new(0, 20, 0, 20)
 MenuToggle.BackgroundColor3 = Color3.fromRGB(20, 20, 22)
-MenuToggle.TextColor3 = _G.ESPColor
+MenuToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 MenuToggle.Text = "[ ESP MENU ]"
 MenuToggle.Font = Enum.Font.RobotoMono
 MenuToggle.TextSize = 13
@@ -27,12 +83,12 @@ local ToggleCorner = Instance.new("UICorner", MenuToggle)
 ToggleCorner.CornerRadius = UDim.new(0, 6)
 
 local ToggleStroke = Instance.new("UIStroke", MenuToggle)
-ToggleStroke.Color = _G.ESPColor
+ToggleStroke.Color = Color3.fromRGB(255, 255, 255)
 ToggleStroke.Thickness = 1
 ToggleStroke.Transparency = 0.4
 
 local MainPanel = Instance.new("Frame", ScreenGui)
-MainPanel.Size = UDim2.new(0, 220, 0, 175)
+MainPanel.Size = UDim2.new(0, 230, 0, 320)
 MainPanel.Position = UDim2.new(0, 20, 0, 65)
 MainPanel.BackgroundColor3 = Color3.fromRGB(15, 15, 17)
 MainPanel.BorderSizePixel = 0
@@ -46,15 +102,56 @@ PanelStroke.Color = Color3.fromRGB(60, 60, 65)
 PanelStroke.Thickness = 1
 
 local UIListLayout = Instance.new("UIListLayout", MainPanel)
-UIListLayout.Padding = UDim.new(0, 8)
+UIListLayout.Padding = UDim.new(0, 6)
 UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 
-local function createToggleButton(text, globalVar)
-    local btn = Instance.new("TextButton", MainPanel)
-    btn.Size = UDim2.new(0, 190, 0, 36)
+local UserInputService = game:GetService("UserInputService")
+local dragging, dragInput, dragStart, startPos
+
+local function makeDraggable(frame)
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+makeDraggable(MainPanel)
+makeDraggable(MenuToggle)
+
+-- 項目コンテナ＋プレビュー機能付きトグル生成
+local function createRowComponent(text, globalVar)
+    local RowFrame = Instance.new("Frame", MainPanel)
+    RowFrame.Size = UDim2.new(0, 205, 0, 34)
+    RowFrame.BackgroundTransparency = 1
+    
+    local btn = Instance.new("TextButton", RowFrame)
+    btn.Size = UDim2.new(0, 160, 0, 34)
+    btn.Position = UDim2.new(0, 0, 0, 0)
     btn.Font = Enum.Font.RobotoMono
-    btn.TextSize = 12
+    btn.TextSize = 11
     btn.BorderSizePixel = 0
     
     local btnCorner = Instance.new("UICorner", btn)
@@ -62,41 +159,144 @@ local function createToggleButton(text, globalVar)
     
     local btnStroke = Instance.new("UIStroke", btn)
     btnStroke.Thickness = 1
-    btnStroke.Transparency = 0.6
 
-    local function updateButtonDisplay()
+    -- 横に設置するカラープレビューボックス
+    local ColorIndicator = Instance.new("TextButton", RowFrame)
+    ColorIndicator.Size = UDim2.new(0, 38, 0, 34)
+    ColorIndicator.Position = UDim2.new(0, 167, 0, 0)
+    ColorIndicator.Text = ""
+    ColorIndicator.BorderSizePixel = 0
+    
+    local indCorner = Instance.new("UICorner", ColorIndicator)
+    indCorner.CornerRadius = UDim.new(0, 6)
+    
+    local indStroke = Instance.new("UIStroke", ColorIndicator)
+    indStroke.Thickness = 1.5
+
+    local function updateDisplay()
+        -- ON/OFF 見た目の処理
         if _G[globalVar] then
-            TweenService:Create(btn, tweenInfo, {BackgroundColor3 = Color3.fromRGB(245, 245, 245)}):Play()
-            TweenService:Create(btn, tweenInfo, {TextColor3 = Color3.fromRGB(15, 15, 15)}):Play()
-            btnStroke.Color = Color3.fromRGB(255, 255, 255)
+            btn.BackgroundColor3 = Color3.fromRGB(240, 240, 245)
+            btn.TextColor3 = Color3.fromRGB(15, 15, 15)
             btn.Text = text .. " : ON"
         else
-            TweenService:Create(btn, tweenInfo, {BackgroundColor3 = Color3.fromRGB(30, 30, 35)}):Play()
-            TweenService:Create(btn, tweenInfo, {TextColor3 = Color3.fromRGB(130, 130, 135)}):Play()
-            btnStroke.Color = Color3.fromRGB(70, 70, 75)
+            btn.BackgroundColor3 = Color3.fromRGB(28, 28, 32)
+            btn.TextColor3 = Color3.fromRGB(130, 130, 135)
             btn.Text = text .. " : OFF"
         end
+
+        -- 現在選択されているカラー調整対象の枠線を強調
+        if currentConfigTarget == globalVar then
+            btnStroke.Color = Color3.fromRGB(255, 255, 255)
+            btnStroke.Transparency = 0.1
+            indStroke.Color = Color3.fromRGB(255, 255, 255)
+            indStroke.Transparency = 0.1
+        else
+            btnStroke.Color = Color3.fromRGB(55, 55, 60)
+            btnStroke.Transparency = 0.6
+            indStroke.Color = Color3.fromRGB(40, 40, 45)
+            indStroke.Transparency = 0.4
+        end
+
+        ColorIndicator.BackgroundColor3 = _G.Colors[globalVar]
     end
     
-    btn.MouseEnter:Connect(function()
-        TweenService:Create(btnStroke, tweenInfo, {Transparency = 0.2}):Play()
-    end)
-    btn.MouseLeave:Connect(function()
-        TweenService:Create(btnStroke, tweenInfo, {Transparency = 0.6}):Play()
-    end)
-    
+    -- メインボタンクリック：ON/OFF切り替え ＆ カラー編集ターゲットに設定
     btn.MouseButton1Click:Connect(function()
         _G[globalVar] = not _G[globalVar]
-        updateButtonDisplay()
+        currentConfigTarget = globalVar
+        updateDisplay()
+        saveConfig()
+    end)
+
+    -- インジケータークリック：カラー編集ターゲットに設定
+    ColorIndicator.MouseButton1Click:Connect(function()
+        currentConfigTarget = globalVar
+        updateDisplay()
     end)
     
-    updateButtonDisplay()
-    return btn
+    task.spawn(function()
+        while task.wait(0.2) do
+            updateDisplay()
+        end
+    end)
+
+    updateDisplay()
 end
 
-createToggleButton("NAMES & INFO", "ShowNames")
-createToggleButton("2D BOXES", "ShowBoxes")
-createToggleButton("TRACERS", "ShowTracers")
+createRowComponent("NAMES & INFO", "ShowNames")
+createRowComponent("2D BOXES", "ShowBoxes")
+createRowComponent("TRACERS", "ShowTracers")
+createRowComponent("SKELETONS", "ShowSkeletons")
+
+-- 区切り線
+local Divider = Instance.new("Frame", MainPanel)
+Divider.Size = UDim2.new(0, 195, 0, 1)
+Divider.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+Divider.BorderSizePixel = 0
+
+-- RGBスライダーボタン
+local function createColorSlider(colorChannel)
+    local btn = Instance.new("TextButton", MainPanel)
+    btn.Size = UDim2.new(0, 205, 0, 28)
+    btn.Font = Enum.Font.RobotoMono
+    btn.TextSize = 11
+    btn.BorderSizePixel = 0
+    btn.BackgroundColor3 = Color3.fromRGB(22, 22, 25)
+    
+    local btnCorner = Instance.new("UICorner", btn)
+    btnCorner.CornerRadius = UDim.new(0, 6)
+    
+    local btnStroke = Instance.new("UIStroke", btn)
+    btnStroke.Thickness = 1
+    btnStroke.Color = Color3.fromRGB(50, 50, 55)
+    btnStroke.Transparency = 0.5
+
+    local function updateColorDisplay()
+        local activeColor = _G.Colors[currentConfigTarget]
+        local r = math.floor(activeColor.R * 255)
+        local g = math.floor(activeColor.G * 255)
+        local b = math.floor(activeColor.B * 255)
+        
+        if colorChannel == "R" then
+            btn.Text = "  [R] VALUE: " .. r
+            btn.TextColor3 = Color3.fromRGB(255, 90, 90)
+        elseif colorChannel == "G" then
+            btn.Text = "  [G] VALUE: " .. g
+            btn.TextColor3 = Color3.fromRGB(90, 255, 90)
+        elseif colorChannel == "B" then
+            btn.Text = "  [B] VALUE: " .. b
+            btn.TextColor3 = Color3.fromRGB(90, 90, 255)
+        end
+    end
+
+    btn.MouseButton1Click:Connect(function()
+        local activeColor = _G.Colors[currentConfigTarget]
+        local r = math.floor(activeColor.R * 255)
+        local g = math.floor(activeColor.G * 255)
+        local b = math.floor(activeColor.B * 255)
+
+        if colorChannel == "R" then r = (r + 25) > 255 and 0 or (r + 25)
+        elseif colorChannel == "G" then g = (g + 25) > 255 and 0 or (g + 25)
+        elseif colorChannel == "B" then b = (b + 25) > 255 and 0 or (b + 25)
+        end
+
+        _G.Colors[currentConfigTarget] = Color3.fromRGB(r, g, b)
+        updateColorDisplay()
+        saveConfig()
+    end)
+
+    task.spawn(function()
+        while task.wait(0.1) do
+            updateColorDisplay()
+        end
+    end)
+    updateColorDisplay()
+end
+
+createColorSlider("R")
+createColorSlider("G")
+createColorSlider("B")
 
 MenuToggle.MouseButton1Click:Connect(function()
     MainPanel.Visible = not MainPanel.Visible
@@ -120,7 +320,6 @@ Tag.BackgroundTransparency = 1
 Tag.Position = UDim2.new(0, -25, 0, 0)
 Tag.Size = UDim2.new(0, 300, 0, 20)
 Tag.TextSize = 13
-Tag.TextColor3 = _G.ESPColor
 Tag.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 Tag.TextStrokeTransparency = 0.3
 Tag.Font = Enum.Font.RobotoMono
@@ -135,7 +334,8 @@ local function getESP(v)
     if not ESPCache[v.Name] then
         ESPCache[v.Name] = {
             Box = Drawing.new("Square"),
-            Tracer = Drawing.new("Line")
+            Tracer = Drawing.new("Line"),
+            Bones = {}
         }
         ESPCache[v.Name].Box.Thickness = 1.5
         ESPCache[v.Name].Box.Filled = false
@@ -143,6 +343,14 @@ local function getESP(v)
         
         ESPCache[v.Name].Tracer.Thickness = 1
         ESPCache[v.Name].Tracer.Transparency = 0.5
+
+        for i = 1, 15 do
+            local boneLine = Drawing.new("Line")
+            boneLine.Thickness = 1.5
+            boneLine.Transparency = 0.7
+            boneLine.Visible = false
+            table.insert(ESPCache[v.Name].Bones, boneLine)
+        end
     end
     return ESPCache[v.Name]
 end
@@ -156,6 +364,7 @@ local function updateTagText(targetPlayer, tagLabel)
     else
         tagLabel.Text = targetPlayer.Name
     end
+    tagLabel.TextColor3 = _G.Colors.ShowNames
 end
 
 local LoadCharacter = function(v)
@@ -174,7 +383,6 @@ local LoadCharacter = function(v)
     t.Adornee = v.Character:WaitForChild("Head", 5)
     if not t.Adornee then return end
     
-    t.Tag.TextColor3 = _G.ESPColor
     t.Tag.Name = "TargetTag"
 end
 
@@ -183,8 +391,11 @@ local UnloadCharacter = function(v)
     if vHolder then vHolder:ClearAllChildren() end
     
     if ESPCache[v.Name] then
-        ESPCache[v.Name].Box:Remove()
-        ESPCache[v.Name].Tracer:Remove()
+        pcall(function() ESPCache[v.Name].Box:Remove() end)
+        pcall(function() ESPCache[v.Name].Tracer:Remove() end)
+        for _, bone in pairs(ESPCache[v.Name].Bones) do
+            pcall(function() bone:Remove() end)
+        end
         ESPCache[v.Name] = nil
     end
 end
@@ -212,68 +423,117 @@ players.PlayerAdded:Connect(function(v) pcall(LoadPlayer, v) end)
 players.PlayerRemoving:Connect(function(v) pcall(UnloadPlayer, v) end)
 plr.NameDisplayDistance = 0
 
+local function drawSkeleton(char, esp, onScreen)
+    if not onScreen or not _G.ShowSkeletons then 
+        for _, bone in pairs(esp.Bones) do bone.Visible = false end
+        return 
+    end
+
+    local joints = {}
+    if char:FindFirstChild("UpperTorso") then
+        joints = {
+            {"Head", "UpperTorso"}, {"UpperTorso", "LowerTorso"},
+            {"UpperTorso", "LeftUpperArm"}, {"LeftUpperArm", "LeftLowerArm"}, {"LeftLowerArm", "LeftHand"},
+            {"UpperTorso", "RightUpperArm"}, {"RightUpperArm", "RightLowerArm"}, {"RightLowerArm", "RightHand"},
+            {"LowerTorso", "LeftUpperLeg"}, {"LeftUpperLeg", "LeftLowerLeg"}, {"LeftLowerLeg", "LeftFoot"},
+            {"LowerTorso", "RightUpperLeg"}, {"RightUpperLeg", "RightLowerLeg"}, {"RightLowerLeg", "RightFoot"}
+        }
+    elseif char:FindFirstChild("Torso") then
+        joints = {
+            {"Head", "Torso"}, {"Torso", "Left Arm"}, {"Torso", "Right Arm"},
+            {"Torso", "Left Leg"}, {"Torso", "Right Leg"}
+        }
+    end
+
+    local index = 1
+    for _, pair in pairs(joints) do
+        local p1, p2 = char:FindFirstChild(pair[1]), char:FindFirstChild(pair[2])
+        if p1 and p2 then
+            local pos1, os1 = camera:WorldToViewportPoint(p1.Position)
+            local pos2, os2 = camera:WorldToViewportPoint(p2.Position)
+            if os1 and os2 then
+                local boneLine = esp.Bones[index]
+                if boneLine then
+                    boneLine.From = Vector2.new(pos1.X, pos1.Y)
+                    boneLine.To = Vector2.new(pos2.X, pos2.Y)
+                    boneLine.Color = _G.Colors.ShowSkeletons
+                    boneLine.Visible = true
+                    index = index + 1
+                end
+            end
+        end
+    end
+    for i = index, #esp.Bones do
+        esp.Bones[i].Visible = false
+    end
+end
+
 task.spawn(function()
     while task.wait() do
         for i, v in pairs(players:GetPlayers()) do
-            local esp = getESP(v)
-            
-            if v ~= plr and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Humanoid") then
-                local hrp = v.Character.HumanoidRootPart
-                local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
+            pcall(function()
+                local esp = getESP(v)
                 
-                if v.Character:FindFirstChild("GetReal") then
-                    v.Character.GetReal:Destroy()
-                end
-                
-                if onScreen then
-                    local head = v.Character:FindFirstChild("Head")
-                    local headPos = head and camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0)) or screenPos
-                    local legPos = camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+                if v ~= plr and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Humanoid") then
+                    local hrp = v.Character.HumanoidRootPart
+                    local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
                     
-                    local boxHeight = math.abs(headPos.Y - legPos.Y)
-                    local boxWidth = boxHeight / 1.5
-                    
-                    if _G.ShowBoxes then
-                        esp.Box.Size = Vector2.new(boxWidth, boxHeight)
-                        esp.Box.Position = Vector2.new(screenPos.X - boxWidth / 2, screenPos.Y - boxHeight / 2)
-                        esp.Box.Color = _G.ESPColor
-                        esp.Box.Visible = true
-                    else
-                        esp.Box.Visible = false
+                    if v.Character:FindFirstChild("GetReal") then
+                        v.Character.GetReal:Destroy()
                     end
                     
-                    if _G.ShowTracers then
-                        esp.Tracer.Color = _G.ESPColor
-                        esp.Tracer.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
-                        esp.Tracer.To = Vector2.new(screenPos.X, screenPos.Y)
-                        esp.Tracer.Visible = true
-                    else
-                        esp.Tracer.Visible = false
-                    end
-                    
-                    local vHolder = Holder:FindFirstChild(v.Name)
-                    if vHolder then
-                        local nameTag = vHolder:FindFirstChild(v.Name .. "NameTag")
-                        if nameTag then
-                            nameTag.Enabled = _G.ShowNames
-                            local targetTag = nameTag:FindFirstChild("TargetTag")
-                            if targetTag and _G.ShowNames then
-                                updateTagText(v, targetTag)
+                    if onScreen then
+                        local head = v.Character:FindFirstChild("Head")
+                        local headPos = head and camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0)) or screenPos
+                        local legPos = camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+                        
+                        local boxHeight = math.abs(headPos.Y - legPos.Y)
+                        local boxWidth = boxHeight / 1.5
+                        
+                        if _G.ShowBoxes then
+                            esp.Box.Size = Vector2.new(boxWidth, boxHeight)
+                            esp.Box.Position = Vector2.new(screenPos.X - boxWidth / 2, screenPos.Y - boxHeight / 2)
+                            esp.Box.Color = _G.Colors.ShowBoxes
+                            esp.Box.Visible = true
+                        else
+                            esp.Box.Visible = false
+                        end
+                        
+                        if _G.ShowTracers then
+                            esp.Tracer.Color = _G.Colors.ShowTracers
+                            esp.Tracer.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+                            esp.Tracer.To = Vector2.new(screenPos.X, screenPos.Y)
+                            esp.Tracer.Visible = true
+                        else
+                            esp.Tracer.Visible = false
+                        end
+                        
+                        local vHolder = Holder:FindFirstChild(v.Name)
+                        if vHolder then
+                            local nameTag = vHolder:FindFirstChild(v.Name .. "NameTag")
+                            if nameTag then
+                                nameTag.Enabled = _G.ShowNames
+                                local targetTag = nameTag:FindFirstChild("TargetTag")
+                                if targetTag and _G.ShowNames then
+                                    updateTagText(v, targetTag)
+                                end
                             end
                         end
+                    else
+                        esp.Box.Visible = false
+                        esp.Tracer.Visible = false
+                        local vHolder = Holder:FindFirstChild(v.Name)
+                        if vHolder and vHolder:FindFirstChild(v.Name .. "NameTag") then
+                            vHolder[v.Name .. "NameTag"].Enabled = false
+                        end
                     end
+                    drawSkeleton(v.Character, esp, onScreen)
                 else
                     esp.Box.Visible = false
                     esp.Tracer.Visible = false
-                    local vHolder = Holder:FindFirstChild(v.Name)
-                    if vHolder and vHolder:FindFirstChild(v.Name .. "NameTag") then
-                        vHolder[v.Name .. "NameTag"].Enabled = false
-                    end
+                    for _, bone in pairs(esp.Bones) do bone.Visible = false end
                 end
-            else
-                esp.Box.Visible = false
-                esp.Tracer.Visible = false
-            end
+            end)
         end
     end
 end)
