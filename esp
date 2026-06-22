@@ -1,23 +1,18 @@
--- === 初期設定（初期値） ===
-_G.ShowNames = true          -- 名前（距離、体力）
-_G.ShowBoxes = true          -- 2D枠（Box）
-_G.ShowTracers = true        -- 自分からの線（トレーサー）
-_G.ESPColor = Color3.fromRGB(255, 255, 255) -- ミニマルホワイトに変更
--- =========================
+_G.ShowNames = true
+_G.ShowBoxes = true
+_G.ShowTracers = true
+_G.ESPColor = Color3.fromRGB(255, 255, 255)
 
 local Holder = Instance.new("Folder", game.CoreGui)
 Holder.Name = "ESP"
 
--- === GUIの作成 ===
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 ScreenGui.Name = "ESP_Menu_Gui"
 ScreenGui.ResetOnSpawn = false
 
--- スムーズなアニメーション用（TweenService）
 local TweenService = game:GetService("TweenService")
 local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
--- 開閉ボタン（トグル）
 local MenuToggle = Instance.new("TextButton", ScreenGui)
 MenuToggle.Size = UDim2.new(0, 130, 0, 35)
 MenuToggle.Position = UDim2.new(0, 20, 0, 20)
@@ -28,17 +23,14 @@ MenuToggle.Font = Enum.Font.RobotoMono
 MenuToggle.TextSize = 13
 MenuToggle.BorderSizePixel = 0
 
--- UIの角を丸める（角丸）
 local ToggleCorner = Instance.new("UICorner", MenuToggle)
 ToggleCorner.CornerRadius = UDim.new(0, 6)
 
--- 枠線（ストローク）
 local ToggleStroke = Instance.new("UIStroke", MenuToggle)
 ToggleStroke.Color = _G.ESPColor
 ToggleStroke.Thickness = 1
 ToggleStroke.Transparency = 0.4
 
--- メインパネル
 local MainPanel = Instance.new("Frame", ScreenGui)
 MainPanel.Size = UDim2.new(0, 220, 0, 175)
 MainPanel.Position = UDim2.new(0, 20, 0, 65)
@@ -53,13 +45,11 @@ local PanelStroke = Instance.new("UIStroke", MainPanel)
 PanelStroke.Color = Color3.fromRGB(60, 60, 65)
 PanelStroke.Thickness = 1
 
--- UIリストレイアウト（ボタンを綺麗に並べる）
 local UIListLayout = Instance.new("UIListLayout", MainPanel)
 UIListLayout.Padding = UDim.new(0, 8)
 UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 
--- ボタン作成関数
 local function createToggleButton(text, globalVar)
     local btn = Instance.new("TextButton", MainPanel)
     btn.Size = UDim2.new(0, 190, 0, 36)
@@ -76,13 +66,11 @@ local function createToggleButton(text, globalVar)
 
     local function updateButtonDisplay()
         if _G[globalVar] then
-            -- オン状態：洗練されたピュアホワイト背景 ＋ 黒文字
             TweenService:Create(btn, tweenInfo, {BackgroundColor3 = Color3.fromRGB(245, 245, 245)}):Play()
             TweenService:Create(btn, tweenInfo, {TextColor3 = Color3.fromRGB(15, 15, 15)}):Play()
             btnStroke.Color = Color3.fromRGB(255, 255, 255)
             btn.Text = text .. " : ON"
         else
-            -- オフ状態：ダークグレー背景 ＋ 薄いグレー文字
             TweenService:Create(btn, tweenInfo, {BackgroundColor3 = Color3.fromRGB(30, 30, 35)}):Play()
             TweenService:Create(btn, tweenInfo, {TextColor3 = Color3.fromRGB(130, 130, 135)}):Play()
             btnStroke.Color = Color3.fromRGB(70, 70, 75)
@@ -90,7 +78,6 @@ local function createToggleButton(text, globalVar)
         end
     end
     
-    -- ホバー時の視覚エフェクト
     btn.MouseEnter:Connect(function()
         TweenService:Create(btnStroke, tweenInfo, {Transparency = 0.2}):Play()
     end)
@@ -111,7 +98,6 @@ createToggleButton("NAMES & INFO", "ShowNames")
 createToggleButton("2D BOXES", "ShowBoxes")
 createToggleButton("TRACERS", "ShowTracers")
 
--- メインパネルの開閉アニメーション
 MenuToggle.MouseButton1Click:Connect(function()
     MainPanel.Visible = not MainPanel.Visible
     if MainPanel.Visible then
@@ -121,8 +107,6 @@ MenuToggle.MouseButton1Click:Connect(function()
     end
 end)
 
-
--- === ESP コアロジック ===
 local NameTag = Instance.new("BillboardGui")
 NameTag.Name = "nilNameTag"
 NameTag.Enabled = false
@@ -228,7 +212,6 @@ players.PlayerAdded:Connect(function(v) pcall(LoadPlayer, v) end)
 players.PlayerRemoving:Connect(function(v) pcall(UnloadPlayer, v) end)
 plr.NameDisplayDistance = 0
 
--- メイン更新ループ
 task.spawn(function()
     while task.wait() do
         for i, v in pairs(players:GetPlayers()) do
