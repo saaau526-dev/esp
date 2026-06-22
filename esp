@@ -1,0 +1,296 @@
+-- === 初期設定（初期値） ===
+_G.ShowNames = true          -- 名前（距離、体力）
+_G.ShowBoxes = true          -- 2D枠（Box）
+_G.ShowTracers = true        -- 自分からの線（トレーサー）
+_G.ESPColor = Color3.fromRGB(255, 255, 255) -- ミニマルホワイトに変更
+-- =========================
+
+local Holder = Instance.new("Folder", game.CoreGui)
+Holder.Name = "ESP"
+
+-- === GUIの作成 ===
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+ScreenGui.Name = "ESP_Menu_Gui"
+ScreenGui.ResetOnSpawn = false
+
+-- スムーズなアニメーション用（TweenService）
+local TweenService = game:GetService("TweenService")
+local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+-- 開閉ボタン（トグル）
+local MenuToggle = Instance.new("TextButton", ScreenGui)
+MenuToggle.Size = UDim2.new(0, 130, 0, 35)
+MenuToggle.Position = UDim2.new(0, 20, 0, 20)
+MenuToggle.BackgroundColor3 = Color3.fromRGB(20, 20, 22)
+MenuToggle.TextColor3 = _G.ESPColor
+MenuToggle.Text = "[ ESP MENU ]"
+MenuToggle.Font = Enum.Font.RobotoMono
+MenuToggle.TextSize = 13
+MenuToggle.BorderSizePixel = 0
+
+-- UIの角を丸める（角丸）
+local ToggleCorner = Instance.new("UICorner", MenuToggle)
+ToggleCorner.CornerRadius = UDim.new(0, 6)
+
+-- 枠線（ストローク）
+local ToggleStroke = Instance.new("UIStroke", MenuToggle)
+ToggleStroke.Color = _G.ESPColor
+ToggleStroke.Thickness = 1
+ToggleStroke.Transparency = 0.4
+
+-- メインパネル
+local MainPanel = Instance.new("Frame", ScreenGui)
+MainPanel.Size = UDim2.new(0, 220, 0, 175)
+MainPanel.Position = UDim2.new(0, 20, 0, 65)
+MainPanel.BackgroundColor3 = Color3.fromRGB(15, 15, 17)
+MainPanel.BorderSizePixel = 0
+MainPanel.Visible = false
+
+local PanelCorner = Instance.new("UICorner", MainPanel)
+PanelCorner.CornerRadius = UDim.new(0, 8)
+
+local PanelStroke = Instance.new("UIStroke", MainPanel)
+PanelStroke.Color = Color3.fromRGB(60, 60, 65)
+PanelStroke.Thickness = 1
+
+-- UIリストレイアウト（ボタンを綺麗に並べる）
+local UIListLayout = Instance.new("UIListLayout", MainPanel)
+UIListLayout.Padding = UDim.new(0, 8)
+UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+
+-- ボタン作成関数
+local function createToggleButton(text, globalVar)
+    local btn = Instance.new("TextButton", MainPanel)
+    btn.Size = UDim2.new(0, 190, 0, 36)
+    btn.Font = Enum.Font.RobotoMono
+    btn.TextSize = 12
+    btn.BorderSizePixel = 0
+    
+    local btnCorner = Instance.new("UICorner", btn)
+    btnCorner.CornerRadius = UDim.new(0, 6)
+    
+    local btnStroke = Instance.new("UIStroke", btn)
+    btnStroke.Thickness = 1
+    btnStroke.Transparency = 0.6
+
+    local function updateButtonDisplay()
+        if _G[globalVar] then
+            -- オン状態：洗練されたピュアホワイト背景 ＋ 黒文字
+            TweenService:Create(btn, tweenInfo, {BackgroundColor3 = Color3.fromRGB(245, 245, 245)}):Play()
+            TweenService:Create(btn, tweenInfo, {TextColor3 = Color3.fromRGB(15, 15, 15)}):Play()
+            btnStroke.Color = Color3.fromRGB(255, 255, 255)
+            btn.Text = text .. " : ON"
+        else
+            -- オフ状態：ダークグレー背景 ＋ 薄いグレー文字
+            TweenService:Create(btn, tweenInfo, {BackgroundColor3 = Color3.fromRGB(30, 30, 35)}):Play()
+            TweenService:Create(btn, tweenInfo, {TextColor3 = Color3.fromRGB(130, 130, 135)}):Play()
+            btnStroke.Color = Color3.fromRGB(70, 70, 75)
+            btn.Text = text .. " : OFF"
+        end
+    end
+    
+    -- ホバー時の視覚エフェクト
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btnStroke, tweenInfo, {Transparency = 0.2}):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btnStroke, tweenInfo, {Transparency = 0.6}):Play()
+    end)
+    
+    btn.MouseButton1Click:Connect(function()
+        _G[globalVar] = not _G[globalVar]
+        updateButtonDisplay()
+    end)
+    
+    updateButtonDisplay()
+    return btn
+end
+
+createToggleButton("NAMES & INFO", "ShowNames")
+createToggleButton("2D BOXES", "ShowBoxes")
+createToggleButton("TRACERS", "ShowTracers")
+
+-- メインパネルの開閉アニメーション
+MenuToggle.MouseButton1Click:Connect(function()
+    MainPanel.Visible = not MainPanel.Visible
+    if MainPanel.Visible then
+        TweenService:Create(MenuToggle, tweenInfo, {BackgroundColor3 = Color3.fromRGB(35, 35, 40)}):Play()
+    else
+        TweenService:Create(MenuToggle, tweenInfo, {BackgroundColor3 = Color3.fromRGB(20, 20, 22)}):Play()
+    end
+end)
+
+
+-- === ESP コアロジック ===
+local NameTag = Instance.new("BillboardGui")
+NameTag.Name = "nilNameTag"
+NameTag.Enabled = false
+NameTag.Size = UDim2.new(0, 250, 0, 50)
+NameTag.AlwaysOnTop = true
+NameTag.StudsOffset = Vector3.new(0, 3.5, 0)
+
+local Tag = Instance.new("TextLabel", NameTag)
+Tag.Name = "Tag"
+Tag.BackgroundTransparency = 1
+Tag.Position = UDim2.new(0, -25, 0, 0)
+Tag.Size = UDim2.new(0, 300, 0, 20)
+Tag.TextSize = 13
+Tag.TextColor3 = _G.ESPColor
+Tag.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+Tag.TextStrokeTransparency = 0.3
+Tag.Font = Enum.Font.RobotoMono
+
+local players = game:GetService("Players")
+local plr = players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+local ESPCache = {}
+
+local function getESP(v)
+    if not ESPCache[v.Name] then
+        ESPCache[v.Name] = {
+            Box = Drawing.new("Square"),
+            Tracer = Drawing.new("Line")
+        }
+        ESPCache[v.Name].Box.Thickness = 1.5
+        ESPCache[v.Name].Box.Filled = false
+        ESPCache[v.Name].Box.Transparency = 0.85
+        
+        ESPCache[v.Name].Tracer.Thickness = 1
+        ESPCache[v.Name].Tracer.Transparency = 0.5
+    end
+    return ESPCache[v.Name]
+end
+
+local function updateTagText(targetPlayer, tagLabel)
+    local char = targetPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+        local distance = math.floor((plr.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude)
+        local health = math.floor(char.Humanoid.Health)
+        tagLabel.Text = string.format("[%s] Name : %s  Health : %d", distance .. "m", targetPlayer.Name, health)
+    else
+        tagLabel.Text = targetPlayer.Name
+    end
+end
+
+local LoadCharacter = function(v)
+    if v == plr then return end
+    repeat wait() until v.Character ~= nil
+    v.Character:WaitForChild("Humanoid")
+    
+    local vHolder = Holder:FindFirstChild(v.Name)
+    if not vHolder then return end
+    vHolder:ClearAllChildren()
+    
+    local t = NameTag:Clone()
+    t.Name = v.Name .. "NameTag"
+    t.Enabled = true
+    t.Parent = vHolder
+    t.Adornee = v.Character:WaitForChild("Head", 5)
+    if not t.Adornee then return end
+    
+    t.Tag.TextColor3 = _G.ESPColor
+    t.Tag.Name = "TargetTag"
+end
+
+local UnloadCharacter = function(v)
+    local vHolder = Holder:FindFirstChild(v.Name)
+    if vHolder then vHolder:ClearAllChildren() end
+    
+    if ESPCache[v.Name] then
+        ESPCache[v.Name].Box:Remove()
+        ESPCache[v.Name].Tracer:Remove()
+        ESPCache[v.Name] = nil
+    end
+end
+
+local LoadPlayer = function(v)
+    if v == plr then return end
+    local vHolder = Instance.new("Folder", Holder)
+    vHolder.Name = v.Name
+    v.CharacterAdded:Connect(function() pcall(LoadCharacter, v) end)
+    v.CharacterRemoving:Connect(function() pcall(UnloadCharacter, v) end)
+    pcall(LoadCharacter, v)
+end
+
+local UnloadPlayer = function(v)
+    UnloadCharacter(v)
+    local vHolder = Holder:FindFirstChild(v.Name)
+    if vHolder then vHolder:Destroy() end
+end
+
+for i,v in pairs(players:GetPlayers()) do
+    if v ~= plr then task.spawn(function() pcall(LoadPlayer, v) end) end
+end
+
+players.PlayerAdded:Connect(function(v) pcall(LoadPlayer, v) end)
+players.PlayerRemoving:Connect(function(v) pcall(UnloadPlayer, v) end)
+plr.NameDisplayDistance = 0
+
+-- メイン更新ループ
+task.spawn(function()
+    while task.wait() do
+        for i, v in pairs(players:GetPlayers()) do
+            local esp = getESP(v)
+            
+            if v ~= plr and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Humanoid") then
+                local hrp = v.Character.HumanoidRootPart
+                local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
+                
+                if v.Character:FindFirstChild("GetReal") then
+                    v.Character.GetReal:Destroy()
+                end
+                
+                if onScreen then
+                    local head = v.Character:FindFirstChild("Head")
+                    local headPos = head and camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0)) or screenPos
+                    local legPos = camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+                    
+                    local boxHeight = math.abs(headPos.Y - legPos.Y)
+                    local boxWidth = boxHeight / 1.5
+                    
+                    if _G.ShowBoxes then
+                        esp.Box.Size = Vector2.new(boxWidth, boxHeight)
+                        esp.Box.Position = Vector2.new(screenPos.X - boxWidth / 2, screenPos.Y - boxHeight / 2)
+                        esp.Box.Color = _G.ESPColor
+                        esp.Box.Visible = true
+                    else
+                        esp.Box.Visible = false
+                    end
+                    
+                    if _G.ShowTracers then
+                        esp.Tracer.Color = _G.ESPColor
+                        esp.Tracer.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+                        esp.Tracer.To = Vector2.new(screenPos.X, screenPos.Y)
+                        esp.Tracer.Visible = true
+                    else
+                        esp.Tracer.Visible = false
+                    end
+                    
+                    local vHolder = Holder:FindFirstChild(v.Name)
+                    if vHolder then
+                        local nameTag = vHolder:FindFirstChild(v.Name .. "NameTag")
+                        if nameTag then
+                            nameTag.Enabled = _G.ShowNames
+                            local targetTag = nameTag:FindFirstChild("TargetTag")
+                            if targetTag and _G.ShowNames then
+                                updateTagText(v, targetTag)
+                            end
+                        end
+                    end
+                else
+                    esp.Box.Visible = false
+                    esp.Tracer.Visible = false
+                    local vHolder = Holder:FindFirstChild(v.Name)
+                    if vHolder and vHolder:FindFirstChild(v.Name .. "NameTag") then
+                        vHolder[v.Name .. "NameTag"].Enabled = false
+                    end
+                end
+            else
+                esp.Box.Visible = false
+                esp.Tracer.Visible = false
+            end
+        end
+    end
+end)
