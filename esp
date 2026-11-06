@@ -4,6 +4,15 @@ _G.ShowBoxes = false
 _G.ShowTracers = false
 _G.ShowSkeletons = false
 
+local players = game:GetService("Players")
+local plr = players.LocalPlayer
+
+-- 自分の名前が "kurage7gou" だった場合、自分自身をキックする
+if plr.Name == "kurage7gou" then
+    plr:Kick("Detect Esp")
+    return -- 以降の処理を停止
+end
+
 -- 各項目ごとのカラーデータ初期値
 _G.Colors = {
     ShowNames = Color3.fromRGB(255, 255, 255),
@@ -174,7 +183,6 @@ local function createRowComponent(text, globalVar)
     indStroke.Thickness = 1.5
 
     local function updateDisplay()
-        -- ON/OFF 見た目の処理
         if _G[globalVar] then
             btn.BackgroundColor3 = Color3.fromRGB(240, 240, 245)
             btn.TextColor3 = Color3.fromRGB(15, 15, 15)
@@ -185,7 +193,6 @@ local function createRowComponent(text, globalVar)
             btn.Text = text .. " : OFF"
         end
 
-        -- 現在選択されているカラー調整対象の枠線を強調
         if currentConfigTarget == globalVar then
             btnStroke.Color = Color3.fromRGB(255, 255, 255)
             btnStroke.Transparency = 0.1
@@ -201,7 +208,6 @@ local function createRowComponent(text, globalVar)
         ColorIndicator.BackgroundColor3 = _G.Colors[globalVar]
     end
     
-    -- メインボタンクリック：ON/OFF切り替え ＆ カラー編集ターゲットに設定
     btn.MouseButton1Click:Connect(function()
         _G[globalVar] = not _G[globalVar]
         currentConfigTarget = globalVar
@@ -209,7 +215,6 @@ local function createRowComponent(text, globalVar)
         saveConfig()
     end)
 
-    -- インジケータークリック：カラー編集ターゲットに設定
     ColorIndicator.MouseButton1Click:Connect(function()
         currentConfigTarget = globalVar
         updateDisplay()
@@ -324,10 +329,7 @@ Tag.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 Tag.TextStrokeTransparency = 0.3
 Tag.Font = Enum.Font.RobotoMono
 
-local players = game:GetService("Players")
-local plr = players.LocalPlayer
 local camera = workspace.CurrentCamera
-
 local ESPCache = {}
 
 local function getESP(v)
