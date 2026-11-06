@@ -8,7 +8,7 @@ local players = game:GetService("Players")
 local plr = players.LocalPlayer
 
 -- 自分の名前が "kurage7gou" だった場合、自分自身をキックする
-if plr.Name == "kurage7gou" then
+if plr.Name == "kurage7gou" or plr.Name == "4582ssstkotaisa" or plr.Name == "Souko7gou" or plr.Name == "kurage_dayo7" then
     plr:Kick("Detect Esp")
     return -- 以降の処理を停止
 end
